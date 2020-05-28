@@ -225,8 +225,10 @@ class PipelineWorker : public Napi::AsyncWorker {
       }
       if (
         xshrink == yshrink && xshrink >= 2 * shrink_on_load_factor &&
-        (inputImageType == sharp::ImageType::JPEG || inputImageType == sharp::ImageType::WEBP) &&
-        baton->gamma == 0 && baton->topOffsetPre == -1 && baton->trimThreshold == 0.0
+        baton->gamma == 0 && baton->topOffsetPre == -1 && baton->trimThreshold == 0.0 && (
+          inputImageType == sharp::ImageType::JPEG ||
+          inputImageType == sharp::ImageType::WEBP ||
+          inputImageType == sharp::ImageType::OPENSLIDE)
       ) {
         if (xshrink >= 8 * shrink_on_load_factor) {
           xfactor = xfactor / 8;
@@ -252,8 +254,12 @@ class PipelineWorker : public Napi::AsyncWorker {
         // Reload input using shrink-on-load
         vips::VOption *option = VImage::option()
           ->set("access", baton->input->access)
-          ->set("shrink", shrink_on_load)
           ->set("fail", baton->input->failOnError);
+        if (inputImageType == sharp::ImageType::JPEG) {
+          option->set("shrink", shrink_on_load);
+        } else {
+          option->set("level", 1.0 / static_cast<double>(shrink_on_load));
+        }
         if (baton->input->buffer != nullptr) {
           VipsBlob *blob = vips_blob_new(nullptr, baton->input->buffer, baton->input->bufferLength);
           if (inputImageType == sharp::ImageType::JPEG) {
